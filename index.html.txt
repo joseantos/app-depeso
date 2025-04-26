@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leitor de Peso</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    #total {
+      font-size: 2em;
+      margin: 20px 0;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 1.2em;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Leitor de Peso</h1>
+  <input id="barcode" type="text" autofocus placeholder="Escaneie o código..." style="font-size:1.5em; padding:10px; width:80%;">
+  <div id="total">Total: 0</div>
+  <button onclick="resetTotal()">Zerar</button>
+
+  <audio id="beep" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+
+  <script>
+    let total = 0;
+
+    const barcodeInput = document.getElementById('barcode');
+    const totalDisplay = document.getElementById('total');
+    const beepSound = document.getElementById('beep');
+
+    barcodeInput.addEventListener('change', () => {
+      const value = parseFloat(barcodeInput.value);
+      if (!isNaN(value)) {
+        total += value;
+        totalDisplay.textContent = `Total: ${total.toFixed(2)}`;
+        beepSound.play();
+        if (navigator.vibrate) {
+          navigator.vibrate(200);
+        }
+      }
+      barcodeInput.value = '';
+    });
+
+    function resetTotal() {
+      total = 0;
+      totalDisplay.textContent = 'Total: 0';
+      barcodeInput.focus();
+    }
+  </script>
+</body>
+</html>
