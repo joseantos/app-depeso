@@ -1,0 +1,249 @@
+Skip to content
+Navigation Menu
+joseantos
+app-depeso
+
+Type / to search
+Code
+Issues
+Pull requests
+Actions
+Projects
+Wiki
+Security
+Insights
+Settings
+Commit b80f0d0
+joseantos
+joseantos
+authored
+10 minutes ago
+·
+·
+Verified
+Create peso
+main
+0 parents  commit 
+b80f0d0
+File tree
+Filter files…
+peso
+1 file changed
++222
+-0
+lines changed
+Search within code
+ 
+‎peso
++222
+Original file line number	Diff line number	Diff line change
+@@ -0,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor de Códigos de Barras</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold text-center mb-4">Leitor de Códigos de Barras</h1>
+        <!-- Área de vídeo para câmera -->
+        <div id="scanner-container" class="hidden mb-4">
+            <video id="scanner" class="w-full max-w-md mx-auto border rounded"></video>
+            <button id="close-camera" class="mt-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 w-full max-w-md mx-auto">Fechar Câmera</button>
+        </div>
+        <!-- Botões de controle -->
+        <div class="flex flex-wrap gap-2 justify-center mb-4">
+            <button id="open-camera" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Ler com Câmera</button>
+            <button id="add-manual" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Adicionar Manualmente</button>
+            <button id="clear-list" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Limpar Lista</button>
+        </div>
+        <!-- Formulário para adicionar/editar -->
+        <div id="manual-form" class="hidden mb-4 bg-white p-4 rounded shadow max-w-md mx-auto">
+            <h2 id="form-title" class="text-lg font-semibold mb-2">Adicionar Código</h2>
+            <input id="code-input" type="text" placeholder="Código" class="w-full p-2 mb-2 border rounded">
+            <input id="description-input" type="text" placeholder="Descrição" class="w-full p-2 mb-2 border rounded">
+            <input id="weight-input" type="number" step="0.01" placeholder="Peso (kg)" class="w-full p-2 mb-2 border rounded">
+            <div class="flex gap-2">
+                <button id="save-item" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex-1">Salvar</button>
+                <button id="cancel-form" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 flex-1">Cancelar</button>
+            </div>
+        </div>
+        <!-- Lista de itens -->
+        <div id="item-list" class="bg-white p-4 rounded shadow">
+            <h2 class="text-lg font-semibold mb-2">Itens Escaneados</h2>
+            <ul id="items" class="divide-y divide-gray-200"></ul>
+            <p id="total-weight" class="mt-4 font-semibold">Peso Total: 0.00 kg</p>
+        </div>
+        <!-- Créditos -->
+        <footer class="mt-8 text-center text-gray-600">
+            <p>Desenvolvido por Josenilson Moura</p>
+        </footer>
+    </div>
+    <script>
+        let items = [];
+        let editingIndex = null;
+        let isCameraOpen = false;
+        // Elementos DOM
+        const scannerContainer = document.getElementById('scanner-container');
+        const openCameraBtn = document.getElementById('open-camera');
+        const closeCameraBtn = document.getElementById('close-camera');
+        const manualForm = document.getElementById('manual-form');
+        const addManualBtn = document.getElementById('add-manual');
+        const clearListBtn = document.getElementById('clear-list');
+        const saveItemBtn = document.getElementById('save-item');
+        const cancelFormBtn = document.getElementById('cancel-form');
+        const codeInput = document.getElementById('code-input');
+        const descriptionInput = document.getElementById('description-input');
+        const weightInput = document.getElementById('weight-input');
+        const formTitle = document.getElementById('form-title');
+        const itemsList = document.getElementById('items');
+        const totalWeight = document.getElementById('total-weight');
+        // Abrir câmera
+        openCameraBtn.addEventListener('click', () => {
+            if (!isCameraOpen) {
+                scannerContainer.classList.remove('hidden');
+                openCameraBtn.classList.add('hidden');
+                isCameraOpen = true;
+                startScanner();
+            }
+        });
+        // Fechar câmera
+        closeCameraBtn.addEventListener('click', () => {
+            if (isCameraOpen) {
+                Quagga.stop();
+                scannerContainer.classList.add('hidden');
+                openCameraBtn.classList.remove('hidden');
+                isCameraOpen = false;
+            }
+        });
+        // Abrir formulário para adicionar manualmente
+        addManualBtn.addEventListener('click', () => {
+            manualForm.classList.remove('hidden');
+            formTitle.textContent = 'Adicionar Código';
+            codeInput.value = '';
+            descriptionInput.value = '';
+            weightInput.value = '';
+            editingIndex = null;
+        });
+        // Cancelar formulário
+        cancelFormBtn.addEventListener('click', () => {
+            manualForm.classList.add('hidden');
+            codeInput.value = '';
+            descriptionInput.value = '';
+            weightInput.value = '';
+            editingIndex = null;
+        });
+        // Salvar item
+        saveItemBtn.addEventListener('click', () => {
+            const code = codeInput.value.trim();
+            const description = descriptionInput.value.trim();
+            const weight = parseFloat(weightInput.value) || 0;
+            if (code) {
+                if (editingIndex !== null) {
+                    items[editingIndex] = { code, description, weight };
+                } else {
+                    items.push({ code, description, weight });
+                }
+                updateList();
+                manualForm.classList.add('hidden');
+                codeInput.value = '';
+                descriptionInput.value = '';
+                weightInput.value = '';
+                editingIndex = null;
+            }
+        });
+        // Limpar lista
+        clearListBtn.addEventListener('click', () => {
+            items = [];
+            updateList();
+        });
+        // Iniciar scanner
+        function startScanner() {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner'),
+                    constraints: {
+                        facingMode: "environment"
+                    }
+                },
+                decoder: {
+                    readers: [
+                        "code_128_reader",
+                        "ean_reader",
+                        "ean_8_reader",
+                        "code_39_reader",
+                        "upc_reader"
+                    ]
+                }
+            }, function(err) {
+                if (err) {
+                    console.error(err);
+                    alert("Erro ao iniciar a câmera: " + err);
+                    closeCameraBtn.click();
+                    return;
+                }
+                Quagga.start();
+            });
+            Quagga.onDetected(function(data) {
+                const code = data.codeResult.code;
+                items.push({ code, description: '', weight: 0 });
+                updateList();
+                Quagga.stop();
+                closeCameraBtn.click();
+            });
+        }
+        // Atualizar lista de itens
+        function updateList() {
+            itemsList.innerHTML = '';
+            let total = 0;
+            items.forEach((item, index) => {
+                total += item.weight;
+                const li = document.createElement('li');
+                li.className = 'py-2 flex justify-between items-center';
+                li.innerHTML = `
+                    <div>
+                        <strong>${item.code}</strong><br>
+                        ${item.description || 'Sem descrição'}<br>
+                        Peso: ${item.weight.toFixed(2)} kg
+                    </div>
+                    <div>
+                        <button onclick="editItem(${index})" class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 mr-2">Editar</button>
+                        <button onclick="deleteItem(${index})" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Excluir</button>
+                    </div>
+                `;
+                itemsList.appendChild(li);
+            });
+            totalWeight.textContent = `Peso Total: ${total.toFixed(2)} kg`;
+        }
+        // Editar item
+        window.editItem = function(index) {
+            const item = items[index];
+            manualForm.classList.remove('hidden');
+            formTitle.textContent = 'Editar Código';
+            codeInput.value = item.code;
+            descriptionInput.value = item.description;
+            weightInput.value = item.weight;
+            editingIndex = index;
+        };
+        // Excluir item
+        window.deleteItem = function(index) {
+            items.splice(index, 1);
+            updateList();
+        };
+    </script>
+</body>
+</html>
+0 commit comments
+Comments
+0
+ (0)
+Comment
+You're receiving notifications because you're subscribed to this thread.
+
+Create peso · joseantos/app-depeso@b80f0d0
